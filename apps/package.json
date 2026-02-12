@@ -1,0 +1,10 @@
+{
+  "name": "digital-human",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "frontend": "cd frontend && bun run dev",
+    "backend": "cd backend && bun run dev",
+    "dev": "bun run --parallel frontend backend"
+  }
+}

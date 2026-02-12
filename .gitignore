@@ -1,24 +1,44 @@
+# =========================
+# Node / Bun
+# =========================
+node_modules/
+apps/**/node_modules/
+bun.lockb
+
+# Logs
+*.log
+
+# =========================
 # Python
-venv/
-env/
-.venv/
+# =========================
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-
-# Node
-node_modules/
-
-# Audio files
-apps/backend/audios/*.mp3
-apps/backend/audios/*.wav
-apps/backend/audios/*.json
-
-# Environment files
+venv/
 .env
-*.env
+.python-version
 
-# OS files
+# =========================
+# Environment files
+# =========================
+.env
+.env.local
+.env.*.local
+
+# =========================
+# Audio / Generated Files
+# =========================
+apps/backend/audios/
+
+# =========================
+# Build Outputs
+# =========================
+dist/
+build/
+
+# =========================
+# OS / Editor
+# =========================
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
