@@ -16,7 +16,6 @@ export function Avatar(props) {
 
   const {
     message,
-    onMessageStarted,
     onMessageEnded,
   } = useSpeech();
 
@@ -75,10 +74,6 @@ export function Avatar(props) {
     );
 
     setAudio(audioObj);
-
-    audioObj.onplay = () => {
-      onMessageStarted(message.text);
-    };
 
     audioObj.onended = () => {
       onMessageEnded();

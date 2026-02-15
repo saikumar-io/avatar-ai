@@ -17,8 +17,11 @@ export const ChatInterface = () => {
   } = useSpeech();
 
   const send = () => {
+    if (loading) return;
+
     const text = inputRef.current.value.trim();
     if (!text) return;
+
     sendText(text);
     inputRef.current.value = "";
   };
@@ -31,6 +34,7 @@ export const ChatInterface = () => {
         value={language}
         onChange={(e) => changeLanguage(e.target.value)}
         className="mb-3 p-2 rounded text-black"
+        disabled={loading}
       >
         <option value="en-IN">English</option>
         <option value="hi-IN">Hindi</option>
@@ -50,7 +54,7 @@ export const ChatInterface = () => {
                 : "mr-auto bg-neutral-700"
             }`}
           >
-            {msg.text}
+            {msg.text || ""}
           </div>
         ))}
 
@@ -74,15 +78,16 @@ export const ChatInterface = () => {
         <button
           onClick={recording ? stopRecording : startRecording}
           className={`px-4 py-2 rounded-md ${
-            recording ? "bg-red-600" : "bg-green-600"
+            recording ? "bg-red-600 animate-pulse" : "bg-green-600"
           }`}
+          disabled={loading}
         >
           🎤
         </button>
 
         <button
           onClick={send}
-          className="bg-blue-600 px-4 py-2 rounded-md"
+          className="bg-blue-600 px-4 py-2 rounded-md disabled:opacity-50"
           disabled={loading}
         >
           Send

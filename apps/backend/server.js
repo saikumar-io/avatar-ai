@@ -57,7 +57,7 @@ app.post("/tts", async (req, res) => {
         {
           inputs: [text],
           target_language_code: language,
-          source_language_code: language,
+          source_language_code: "auto",
         },
         { responseType: "arraybuffer" }
       );
@@ -65,11 +65,28 @@ app.post("/tts", async (req, res) => {
       audioBuffer = Buffer.from(ttsResponse.data);
 
     } else {
-      console.log("🔵 Using ElevenLabs TTS");
+  console.log("🔵 Using ElevenLabs TTS");
 
-      const audioBase64 = await generateAudio(text, baseName);
-      audioBuffer = Buffer.from(audioBase64, "base64");
-    }
+  try {
+    const audioBase64 = await generateAudio(text, baseName);
+    audioBuffer = Buffer.from(audioBase64, "base64");
+  } catch (err) {
+    console.log("⚠️ ElevenLabs failed, falling back to Sarvam");
+
+    const ttsResponse = await axios.post(
+      `${PY_BACKEND}/text-to-speech`,
+      {
+        inputs: [text],
+        target_language_code: language,
+        source_language_code: language,
+      },
+      { responseType: "arraybuffer" }
+    );
+
+    audioBuffer = Buffer.from(ttsResponse.data);
+  }
+}
+
 
     // Save mp3
     fs.writeFileSync(mp3Path, audioBuffer);

@@ -102,62 +102,89 @@ def chat():
         if not user_message:
             return jsonify({"error": "User message is required"}), 400
 
+        # Map language codes to readable names
+        language_map = {
+            "en-IN": "English",
+            "hi-IN": "Hindi",
+            "te-IN": "Telugu",
+            "ta-IN": "Tamil",
+            "kn-IN": "Kannada"
+        }
+
+        selected_language = language_map.get(language_code, "English")
+
         # Create session if new
         if session_id not in conversation_sessions:
             conversation_sessions[session_id] = {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a friendly loan assistant. Keep answers short and clear."
-                    }
-                ]
+                "messages": []
             }
 
         session = conversation_sessions[session_id]
-        session["messages"].append({"role": "user", "content": user_message})
 
-        # 1️⃣ Generate English response
+        # Always reset system prompt cleanly
+        system_prompt = f"""
+You are a knowledgeable financial assistant specializing in loans.
+
+When the user asks about a loan:
+• Provide complete explanation including all the required like intrest rates,etc.. and important considerations.
+• Do NOT ask unnecessary follow-up questions.
+• Respond completely in {selected_language}.
+• Keep answers structured and clear.
+
+Return ONLY valid JSON:
+{{
+  "full_text": "...detailed explanation...",
+  "spoken_text": "...short conversational summary..."
+}}
+"""
+
+        # Replace or insert system message safely
+        if len(session["messages"]) == 0 or session["messages"][0]["role"] != "system":
+            session["messages"].insert(0, {"role": "system", "content": system_prompt})
+        else:
+            session["messages"][0]["content"] = system_prompt
+
+        # Add user message
+        session["messages"].append({
+            "role": "user",
+            "content": user_message
+        })
+
+        # 🔥 Keep conversation short to prevent token overflow
+        if len(session["messages"]) > 8:
+            session["messages"] = [session["messages"][0]] + session["messages"][-6:]
+
+
+        # Call Groq
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=session["messages"],
-        )
+    model="llama-3.3-70b-versatile",
+    messages=session["messages"],
+    temperature=0.2,
+    max_tokens=1200,
+    response_format={"type": "json_object"}
+)
 
-        english_response = response.choices[0].message.content
 
-        # 2️⃣ Translate if needed
-        final_response = english_response
+        raw_content = response.choices[0].message.content.strip()
 
-        if language_code != "en-IN":
-            translate_payload = {
-                "input": english_response,
-                "source_language_code": "en-IN",
-                "target_language_code": language_code,
-                "speaker_gender": "Female",
-                "mode": "formal",
-                "model": "mayura:v1"
-            }
+        # Try parsing JSON safely
+        try:
+            parsed = json.loads(raw_content)
+            final_full = parsed.get("full_text", raw_content)
+            final_spoken = parsed.get("spoken_text", final_full)
+        except Exception:
+            final_full = raw_content
+            final_spoken = raw_content
 
-            headers = {
-                "Content-Type": "application/json",
-                "api-subscription-key": SARVAM_API_KEY
-            }
-
-            translate_response = requests.post(
-                TRANSLATE_API_URL,
-                json=translate_payload,
-                headers=headers
-            )
-
-            if translate_response.status_code == 200:
-                translate_result = translate_response.json()
-                final_response = translate_result.get("translated_text", english_response)
-            else:
-                print("Translation failed, using English")
-
-        session["messages"].append({"role": "assistant", "content": english_response})
+        # Store assistant response in session
+        session["messages"].append({
+            "role": "assistant",
+            "content": final_full
+        })
 
         return jsonify({
-            "response": final_response,
+            "full_text": final_full,
+            "spoken_text": final_spoken,
             "session_id": session_id
         })
 

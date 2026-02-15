@@ -39,82 +39,103 @@ export const SpeechProvider = ({ children }) => {
 
   /* ---------------- TEXT SEND ---------------- */
 
-  const sendText = async (userText) => {
-    if (!userText || loading) return;
+ const sendText = async (userText) => {
+  if (!userText || loading) return;
 
-    setLoading(true);
-    setThinking(true);
+  setLoading(true);
+  setThinking(true);
 
-    setChatHistory((prev) => [...prev, { role: "user", text: userText }]);
+  // 1️⃣ Show user message
+  setChatHistory((prev) => [
+    ...prev,
+    { role: "user", text: userText }
+  ]);
 
-    try {
-      // 1️⃣ Chat (Groq backend)
-      const res = await fetch(`${PY_BACKEND}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userText,
-          session_id: "default",
-          language_code: language,
-        }),
-      });
+  try {
+    // 2️⃣ Get AI response
+    const res = await fetch(`${PY_BACKEND}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: userText,
+        session_id: "default",
+        language_code: language,
+      }),
+    });
 
-      const data = await res.json();
-      if (!data.response) throw new Error("No AI text");
+    const data = await res.json();
 
-      // Add placeholder assistant bubble
-      setChatHistory((prev) => [...prev, { role: "assistant", text: "" }]);
 
-      // 2️⃣ Avatar TTS
-      const avatarRes = await fetch(`${AVATAR_BACKEND}/tts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: data.response,
-          language,
-        }),
-      });
-
-      const avatarData = await avatarRes.json();
-
-      if (avatarData.messages) {
-        setMessages(avatarData.messages);
-      }
-
-    } catch (err) {
-      console.error("SendText error:", err);
-    } finally {
-      setLoading(false);
+    if (!data.full_text || !data.spoken_text) {
+      throw new Error("Invalid AI response");
     }
-  };
 
-  /* ---------------- TYPING EFFECT ---------------- */
+    // 3️⃣ Add assistant placeholder bubble
+    setChatHistory((prev) => [
+      ...prev,
+      { role: "assistant", text: "" }
+    ]);
 
-  const startTyping = (fullText) => {
-    clearInterval(typingTimer.current);
-    setThinking(false);
-    setTypingText("");
+    // 4️⃣ Send short version to avatar
+    const avatarRes = await fetch(`${AVATAR_BACKEND}/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: data.spoken_text,   // 👈 avatar speaks short version
+        language,
+      }),
+    });
 
-    let i = 0;
-    typingTimer.current = setInterval(() => {
-      i++;
-      setTypingText(fullText.slice(0, i));
+    const avatarData = await avatarRes.json();
 
-      if (i >= fullText.length) {
-        clearInterval(typingTimer.current);
-      }
-    }, 80); // slower typing (feel natural)
-  };
+    if (avatarData.messages) {
+      setMessages(avatarData.messages);
+    }
 
-  const finishTyping = () => {
-    clearInterval(typingTimer.current);
-  };
+    // 5️⃣ Start typing FULL explanation
+    startTyping(data.full_text);
+
+  } catch (err) {
+    console.error("SendText error:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+/* ---------------- TYPING EFFECT ---------------- */
+
+const startTyping = (fullText) => {
+  clearInterval(typingTimer.current);
+
+  setThinking(false);
+  setTypingText("");
+
+  let index = 0;
+  const speed = 30;   // delay per tick
+  const step = 3;     // characters per update
+
+  typingTimer.current = setInterval(() => {
+    index += step;
+
+    if (index >= fullText.length) {
+      setTypingText(fullText);
+      clearInterval(typingTimer.current);
+      return;
+    }
+
+    setTypingText(fullText.slice(0, index));
+  }, speed);
+};
+
+const finishTyping = () => {
+  clearInterval(typingTimer.current);
+};
+
 
   /* ---------------- AVATAR QUEUE ---------------- */
 
-  const onMessageStarted = (text) => {
-    startTyping(text);
-  };
 
   const onMessageEnded = () => {
     setMessages((prev) => prev.slice(1));
@@ -130,17 +151,20 @@ export const SpeechProvider = ({ children }) => {
   }, [messages]);
 
   useEffect(() => {
-    if (!typingText) return;
+  if (!typingText) return;
 
-    setChatHistory((prev) => {
-      const updated = [...prev];
-      updated[updated.length - 1] = {
-        role: "assistant",
-        text: typingText,
-      };
-      return updated;
-    });
-  }, [typingText]);
+  setChatHistory((prev) => {
+    const updated = [...prev];
+
+    if (updated.length === 0) return prev;
+
+    updated[updated.length - 1].text = typingText;
+
+
+    return updated;
+  });
+}, [typingText]);
+
 
   /* ---------------- MIC SETUP ---------------- */
 
@@ -198,7 +222,6 @@ export const SpeechProvider = ({ children }) => {
         chatHistory,
         thinking,
         loading,
-        onMessageStarted,
         onMessageEnded,
         changeLanguage,
         language,
