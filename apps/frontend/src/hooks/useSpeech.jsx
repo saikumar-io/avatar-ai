@@ -9,6 +9,8 @@ export const SpeechProvider = ({ children }) => {
   const [chatHistory, setChatHistory] = useState([]);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+
 
   const [language, setLanguage] = useState("en-IN");
   const [loading, setLoading] = useState(false);
@@ -64,6 +66,13 @@ export const SpeechProvider = ({ children }) => {
     });
 
     const data = await res.json();
+
+    if (data.analysis) {
+      setAnalysis(data.analysis);
+    } else {
+      setAnalysis(null);
+    }
+
 
 
     if (!data.full_text || !data.spoken_text) {
@@ -224,6 +233,7 @@ const finishTyping = () => {
         loading,
         onMessageEnded,
         changeLanguage,
+        analysis,
         language,
         recording,
         startRecording,

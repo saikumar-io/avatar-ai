@@ -1,5 +1,7 @@
 import { useRef } from "react";
 import { useSpeech } from "../hooks/useSpeech";
+import { LoanChart } from "./LoanChart";
+
 
 export const ChatInterface = () => {
   const inputRef = useRef();
@@ -14,6 +16,7 @@ export const ChatInterface = () => {
     recording,
     startRecording,
     stopRecording,
+    analysis,
   } = useSpeech();
 
   const send = () => {
@@ -63,6 +66,7 @@ export const ChatInterface = () => {
             Thinking…
           </div>
         )}
+        {analysis && <LoanChart analysis={analysis} />}
       </div>
 
       {/* INPUT + MIC */}
