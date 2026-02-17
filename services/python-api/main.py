@@ -15,6 +15,7 @@ from pdf2image import convert_from_bytes
 import pytesseract
 from PIL import Image
 from io import BytesIO
+import math
 
 # Load environment variables
 load_dotenv()
@@ -87,6 +88,24 @@ def set_language():
     lang = new_lang
     return jsonify({"message": f"Language changed to {lang}"}), 200
 
+def calculate_emi(principal, annual_rate, tenure_years):
+    monthly_rate = annual_rate / 12 / 100
+    months = tenure_years * 12
+
+    if monthly_rate == 0:
+        emi = principal / months
+    else:
+        emi = (principal * monthly_rate * (1 + monthly_rate) ** months) / \
+              ((1 + monthly_rate) ** months - 1)
+
+    total_payment = emi * months
+    total_interest = total_payment - principal
+
+    return {
+        "emi": round(emi, 2),
+        "total_interest": round(total_interest, 2),
+        "total_payment": round(total_payment, 2)
+    }
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -181,10 +200,22 @@ Return ONLY valid JSON:
             "role": "assistant",
             "content": final_full
         })
+        loan_analysis = None
+        amount_match = re.search(r'(\d+)', user_message)
+        rate_match = re.search(r'(\d+)%', user_message)
+        year_match = re.search(r'(\d+)\s*(year|years)', user_message)
+
+        if amount_match and rate_match and year_match:
+            principal = float(amount_match.group(1))
+            rate = float(rate_match.group(1))
+            years = float(year_match.group(1))
+
+            loan_analysis = calculate_emi(principal, rate, years)
 
         return jsonify({
             "full_text": final_full,
             "spoken_text": final_spoken,
+            "analysis": loan_analysis,
             "session_id": session_id
         })
 
