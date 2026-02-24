@@ -17,6 +17,7 @@ export const ChatInterface = () => {
     startRecording,
     stopRecording,
     analysis,
+    isSpeaking,
   } = useSpeech();
 
   const send = () => {
@@ -66,7 +67,12 @@ export const ChatInterface = () => {
             Thinking…
           </div>
         )}
-        {analysis && <LoanChart analysis={analysis} />}
+        {analysis && (
+  <LoanChart 
+    analysis={analysis}
+    isSpeaking={isSpeaking}
+  />
+)}
       </div>
 
       {/* INPUT + MIC */}

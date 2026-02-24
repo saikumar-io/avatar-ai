@@ -44,6 +44,7 @@ export const SpeechProvider = ({ children }) => {
  const sendText = async (userText) => {
   if (!userText || loading) return;
 
+  setAnalysis(null);
   setLoading(true);
   setThinking(true);
 
@@ -228,6 +229,7 @@ const finishTyping = () => {
       value={{
         sendText,
         message,
+        isSpeaking: message !== null,
         chatHistory,
         thinking,
         loading,

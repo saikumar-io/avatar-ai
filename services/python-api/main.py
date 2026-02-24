@@ -14,7 +14,6 @@ from pdf2image import convert_from_bytes
 # --- TESSERACT OCR IMPORTS & CONFIGURATION (Free Local Solution) ---
 import pytesseract
 from PIL import Image
-from io import BytesIO
 import math
 
 # Load environment variables
@@ -39,8 +38,34 @@ if os.name == "nt":
         )
 
 # Flask app setup
-app = Flask(__name__, static_folder='static', template_folder="templates")
+app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+LOAN_PRODUCTS = {
+    "home": [
+        {"type": "Home Loan Standard", "interest": 8.2, "years": 20, "processing_fee": 1.0},
+        {"type": "Home Loan Flexi", "interest": 8.9, "years": 25, "processing_fee": 0.8},
+        {"type": "Home Loan Premium Plus", "interest": 9.6, "years": 30, "processing_fee": 0.5},
+    ],
+    "car": [
+        {"type": "Car Loan Basic", "interest": 9.5, "years": 5, "processing_fee": 1.2},
+        {"type": "Car Loan Elite", "interest": 11.0, "years": 7, "processing_fee": 1.0},
+        {"type": "Car Loan Premium Drive", "interest": 13.5, "years": 8, "processing_fee": 0.8},
+    ],
+    "personal": [
+        {"type": "Personal Loan Smart", "interest": 13.0, "years": 3, "processing_fee": 2.0},
+        {"type": "Personal Loan Instant Plus", "interest": 16.5, "years": 4, "processing_fee": 1.5},
+        {"type": "Personal Loan Ultra Flex", "interest": 18.8, "years": 5, "processing_fee": 1.0},
+    ],
+    "education": [
+        {"type": "Education Loan National", "interest": 7.5, "years": 10, "processing_fee": 0.5},
+        {"type": "Education Loan Global", "interest": 8.8, "years": 12, "processing_fee": 0.7},
+    ],
+    "business": [
+        {"type": "SME Growth Loan", "interest": 12.5, "years": 7, "processing_fee": 1.5},
+        {"type": "Enterprise Expansion Loan", "interest": 15.2, "years": 10, "processing_fee": 1.0},
+    ]
+}
 
 # Upload folder for audio files
 UPLOAD_FOLDER = 'uploads'
@@ -107,6 +132,24 @@ def calculate_emi(principal, annual_rate, tenure_years):
         "total_payment": round(total_payment, 2)
     }
 
+def extract_amount(text):
+    text = text.lower()
+
+    number_match = re.search(r'(\d+(?:\.\d+)?)', text)
+    if not number_match:
+        return None
+
+    amount = float(number_match.group(1))
+
+    if "lakh" in text:
+        amount *= 100000
+    elif "thousand" in text:
+        amount *= 1000
+    elif "crore" in text:
+        amount *= 10000000
+
+    return amount
+
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
@@ -121,6 +164,14 @@ def chat():
         if not user_message:
             return jsonify({"error": "User message is required"}), 400
 
+        loan_type = None
+
+        if "home" in user_message.lower():
+            loan_type = "home"
+        elif "car" in user_message.lower():
+            loan_type = "car"
+        elif "personal" in user_message.lower():
+            loan_type = "personal"
         # Map language codes to readable names
         language_map = {
             "en-IN": "English",
@@ -201,16 +252,50 @@ Return ONLY valid JSON:
             "content": final_full
         })
         loan_analysis = None
-        amount_match = re.search(r'(\d+)', user_message)
-        rate_match = re.search(r'(\d+)%', user_message)
-        year_match = re.search(r'(\d+)\s*(year|years)', user_message)
+        principal = extract_amount(user_message)
 
-        if amount_match and rate_match and year_match:
-            principal = float(amount_match.group(1))
-            rate = float(rate_match.group(1))
-            years = float(year_match.group(1))
+        if loan_type and principal:
+            selected_products = LOAN_PRODUCTS.get(loan_type, [])
+            loan_options = []
 
-            loan_analysis = calculate_emi(principal, rate, years)
+            for product in selected_products:
+                rate = product["interest"]
+                years = product["years"]
+
+                result = calculate_emi(principal, rate, years)
+
+                # --- Advanced Indicators (INSIDE LOOP) ---
+                emi_ratio = result["emi"] / principal
+                affordability_score = max(0, min(100, int(100 - (emi_ratio * 1000))))
+                cash_flow_stability = min(100, int((years / 30) * 100))
+                risk_flexibility = max(0, int(100 - rate * 3))
+
+
+                loan_options.append({
+                    "type": product["type"],
+                    "interest_rate": rate,
+                    "years": years,
+                    "emi": result["emi"],
+                    "total_interest": result["total_interest"],
+                    "total_payment": result["total_payment"],
+                    "affordability_score": affordability_score,
+                    "cash_flow_stability": cash_flow_stability,
+                    "risk_flexibility": risk_flexibility
+                })
+
+                # BANK PROFIT MAXIMIZATION
+                recommended = max(loan_options, key=lambda x: x["total_interest"])
+
+                # Add persuasion metrics
+                recommended["benefit_reason"] = (
+                    "Lower monthly EMI ensures better cash flow management "
+                    "while maintaining long-term financial flexibility."
+                )
+                loan_analysis = {
+                    "loan_products": loan_options,
+                    "recommended_plan": recommended,
+                    "loan_category": loan_type
+                }
 
         return jsonify({
             "full_text": final_full,
