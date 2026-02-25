@@ -1,6 +1,7 @@
 import express from "express";
 import { processMessage, resetSession } from "../chatEngine.js";
 import LoanApplication from "../models/LoanApplication.js";
+import nodemailer from "nodemailer";
 
 const router = express.Router();
 
@@ -30,19 +31,50 @@ router.post("/chat", (req, res) => {
 // SUBMIT ROUTE
 // ===============================
 router.post("/submit", async (req, res) => {
-    const userId = "demo-user";
-    const { collectedData } = req.body;
+    try {
+        const userId = "demo-user";
+        const { collectedData } = req.body;
 
-    const newApplication = new LoanApplication({
-        userId,
-        ...collectedData,
-        status: "submitted"
-    });
+        // 1️⃣ Save to Mongo
+        const newApplication = new LoanApplication({
+            userId,
+            ...collectedData,
+            status: "submitted",
+            submittedAt: new Date()
+        });
 
-    await newApplication.save();
-    resetSession(userId);
+        await newApplication.save();
 
-    res.json({ message: "Application submitted successfully!" });
+        // 2️⃣ Send Email
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: collectedData.personalDetails.email,
+            subject: "Loan Application Submitted Successfully",
+            html: `
+                <h2>Application Received 🎉</h2>
+                <p><strong>Name:</strong> ${collectedData.personalDetails.name}</p>
+                <p><strong>Loan Amount:</strong> ₹${collectedData.loanDetails.amount}</p>
+                <p><strong>Tenure:</strong> ${collectedData.loanDetails.tenure} months</p>
+                <p>We will review your application shortly.</p>
+            `
+        });
+
+        resetSession(userId);
+
+        res.json({ message: "Application submitted successfully! Email sent." });
+
+    } catch (error) {
+        console.error("Submission error:", error);
+        res.status(500).json({ error: "Failed to submit application" });
+    }
 });
 
 

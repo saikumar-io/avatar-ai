@@ -13,31 +13,28 @@ const LoanApplicationChat = ({ onBack }) => {
 
   // Start chat on load
   useEffect(() => {
-    const startChat = async () => {
-      try {
-        // Reset session first
-        await fetch("http://localhost:3000/api/loan/reset-session", {
-          method: "POST",
-        });
+  const startChat = async () => {
+    // Reset backend session
+    await fetch("http://localhost:3000/api/loan/reset-session", {
+      method: "POST",
+    });
 
-        const res = await fetch("http://localhost:3000/api/loan/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: "" }),
-        });
+    // Start conversation
+    const res = await fetch("http://localhost:3000/api/loan/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "__START__" }),
+    });
 
-        const data = await res.json();
+    const data = await res.json();
 
-        if (data.question) {
-          addMsg("bot", data.question);
-        }
-      } catch (error) {
-        console.error("Start chat error:", error);
-      }
-    };
+    if (data.question) {
+      setMessages([{ sender: "bot", text: data.question }]);
+    }
+  };
 
-    startChat();
-  }, []);
+  startChat();
+}, []);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -73,24 +70,21 @@ const LoanApplicationChat = ({ onBack }) => {
   };
 
   const submitApplication = async () => {
-    try {
-      const res = await fetch("http://localhost:3000/api/loan/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ collectedData }),
-      });
+  const res = await fetch("http://localhost:3000/api/loan/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ collectedData }),
+  });
 
-      const data = await res.json();
+  const data = await res.json();
 
-      if (data.success) {
-        addMsg("bot", "🎉 Application submitted successfully!");
-      }
+  setMessages((prev) => [
+    ...prev,
+    { sender: "bot", text: "🎉 Application submitted successfully!" },
+  ]);
 
-      onBack();
-    } catch (error) {
-      console.error("Submit error:", error);
-    }
-  };
+  setDone("submitted"); // special state
+};
 
   const cancelApplication = async () => {
     await fetch("http://localhost:3000/api/loan/reset-session", {
@@ -133,14 +127,23 @@ const LoanApplicationChat = ({ onBack }) => {
         </div>
       )}
 
-      {done && (
-        <button
-          onClick={submitApplication}
-          className="mt-4 bg-green-500 px-4 py-2 rounded-xl"
-        >
-          Submit Application
-        </button>
-      )}
+      {done === true && (
+  <button
+    onClick={submitApplication}
+    className="mt-4 bg-green-500 px-4 py-2 rounded-xl"
+  >
+    Submit Application
+  </button>
+)}
+
+{done === "submitted" && (
+  <button
+    onClick={onBack}
+    className="mt-4 bg-[#c5a059] px-4 py-2 rounded-xl"
+  >
+    Back to Dashboard
+  </button>
+)}
     </div>
   );
 };

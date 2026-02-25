@@ -114,9 +114,25 @@ function setNested(obj, path, value) {
 function processMessage(userId, message) {
     const session = getSession(userId);
 
-    // First interaction → send first question
+    // If frontend sends __START__, force reset step
+    if (message === "__START__") {
+        session.currentStep = 0;
+        session.started = true;
+        session.collectedData = {};
+
+        return {
+            done: false,
+            question: STEPS[0].question,
+            stepIndex: 0,
+            totalSteps: STEPS.length
+        };
+    }
+
+    // If not started properly
     if (!session.started) {
         session.started = true;
+        session.currentStep = 0;
+        session.collectedData = {};
 
         return {
             done: false,
@@ -148,22 +164,9 @@ function processMessage(userId, message) {
         };
     }
 
-    // Store valid value
-    let valueToStore = message;
-
-    if (step.type === "number") {
-        valueToStore = Number(message);
-    }
-
-    if (step.type === "pan") {
-        valueToStore = message.toUpperCase();
-    }
-
-    setNested(session.collectedData, step.key, valueToStore);
-
+    setNested(session.collectedData, step.key, message);
     session.currentStep++;
 
-    // Completed all steps
     if (session.currentStep >= STEPS.length) {
         return {
             done: true,
@@ -172,7 +175,6 @@ function processMessage(userId, message) {
         };
     }
 
-    // Ask next question
     return {
         done: false,
         question: STEPS[session.currentStep].question,

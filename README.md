@@ -96,11 +96,30 @@ rm -rf audios/*
 cd apps/frontend
 bun run dev
 ```
+### 4 mongodb docker
 
+```bash
+docker run -d \
+  --name loan-mongo \
+  -p 27017:27017 \
+  -e MONGO_INITDB_ROOT_USERNAME=admin \
+  -e MONGO_INITDB_ROOT_PASSWORD=admin123 \
+  mongo:7
+
+docker ps # to verify container
+
+docker exec -it loan-mongo mongosh -u admin -p admin123 --authenticationDatabase admin  # to enter the shell
+
+use loanapp
+show collections
+db.loanapplications.find().pretty()
+
+```
 
 🔧 Requirements
 
-1.Node.js (v18+)
-2.Python 3.10+
-3.FFmpeg
-4.Rhubarb Lip Sync
+1. Node.js (v18+)
+2. Python 3.10+
+3. FFmpeg
+4. Rhubarb Lip Sync
+5. Docker
