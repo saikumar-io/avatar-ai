@@ -349,11 +349,29 @@ Recommended Plan (Based on composite financial score):
 - Total Interest: ₹{recommended['total_interest']}
 """
 
+        show_apply_button = False
+
+        user_lower = user_message.lower()
+        apply_keywords = [
+            "apply",
+            "application",
+            "fill form",
+            "fill application",
+            "start application",
+            "apply loan",
+            "loan application"
+        ]
+
+        if any(keyword in user_lower for keyword in apply_keywords):
+            show_apply_button = True
+        elif loan_analysis and recommended:
+            show_apply_button = True
         return jsonify({
             "full_text": final_full,
             "spoken_text": final_spoken,
             "analysis": loan_analysis,
-            "session_id": session_id
+            "session_id": session_id,
+            "show_apply_button": show_apply_button
         })
 
     except Exception as e:

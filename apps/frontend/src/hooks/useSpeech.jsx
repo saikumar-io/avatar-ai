@@ -10,6 +10,7 @@ export const SpeechProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState(null);
   const [analysis, setAnalysis] = useState(null);
+  const [showApplyButton, setShowApplyButton] = useState(false);
 
 
   const [language, setLanguage] = useState("en-IN");
@@ -73,6 +74,12 @@ export const SpeechProvider = ({ children }) => {
       setAnalysis(data.analysis);
     } else {
       setAnalysis(null);
+    }
+
+    if (data.show_apply_button) {
+      setShowApplyButton(true);
+    } else {
+      setShowApplyButton(false);
     }
 
 
@@ -249,6 +256,7 @@ const finishTyping = () => {
         recording,
         startRecording,
         stopRecording,
+        showApplyButton
       }}
     >
       {children}

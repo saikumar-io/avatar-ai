@@ -4,9 +4,11 @@ import dotenv from "dotenv";
 import axios from "axios";
 import fs from "fs";
 import path from "path";
+import mongoose from "mongoose";
 
 import { lipSync } from "./modules/lip-sync.mjs";
 import { generateAudio } from "./modules/elevenLabs.mjs";
+import loanRoutes from "./routes/loanRoutes.js";
 
 
 dotenv.config();
@@ -16,6 +18,11 @@ const PORT = 3000;
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+app.use("/api/loan", loanRoutes);
+
+mongoose.connect("mongodb://admin:admin123@localhost:27017/loanapp?authSource=admin")
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch(err => console.error("❌ MongoDB Error:", err));
 
 const PY_BACKEND = "http://127.0.0.1:5000";
 

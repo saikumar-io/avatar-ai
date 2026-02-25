@@ -1,9 +1,11 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useSpeech } from "../hooks/useSpeech";
 import { LoanChart } from "./LoanChart";
+import LoanApplicationChat from "./LoanApplicationChat";
 
 export const ChatInterface = () => {
   const inputRef = useRef(null);
+  const [applicationMode, setApplicationMode] = useState(false);
 
   const {
     sendText,
@@ -17,6 +19,7 @@ export const ChatInterface = () => {
     stopRecording,
     analysis,
     isSpeaking,
+    showApplyButton
   } = useSpeech();
 
   const send = () => {
@@ -31,6 +34,14 @@ export const ChatInterface = () => {
       inputRef.current.value = "";
     }
   };
+
+  if (applicationMode) {
+  return (
+    <LoanApplicationChat
+      onBack={() => setApplicationMode(false)}
+    />
+  );
+}
 
   return (
     <div className="h-full flex flex-col bg-[#0a192f] text-white p-6">
@@ -87,6 +98,18 @@ export const ChatInterface = () => {
             />
           </div>
         )}
+
+        {showApplyButton && (
+  <div className="mt-4">
+    <button
+      onClick={() => setApplicationMode(true)}
+      className="bg-[#c5a059] text-[#0a192f] px-5 py-2 rounded-xl font-semibold hover:bg-[#b38e4a]"
+    >
+      Apply for This Loan
+    </button>
+  </div>
+)}
+
       </div>
 
       {/* INPUT AREA */}
