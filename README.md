@@ -85,9 +85,12 @@ python3 main.py
 ```bash
 cd apps/backend
 bun run dev
+
+# to remove the audio files 
+rm -rf audios/*
 ```
 
-### 2 React Frontend
+### 3 React Frontend
 
 ```bash
 cd apps/frontend

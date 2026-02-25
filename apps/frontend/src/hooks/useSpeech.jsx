@@ -13,6 +13,7 @@ export const SpeechProvider = ({ children }) => {
 
 
   const [language, setLanguage] = useState("en-IN");
+  const languageRef = useRef(language);
   const [loading, setLoading] = useState(false);
   const [thinking, setThinking] = useState(false);
 
@@ -62,7 +63,7 @@ export const SpeechProvider = ({ children }) => {
       body: JSON.stringify({
         message: userText,
         session_id: "default",
-        language_code: language,
+        language_code: languageRef.current,
       }),
     });
 
@@ -92,7 +93,7 @@ export const SpeechProvider = ({ children }) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         text: data.spoken_text,   // 👈 avatar speaks short version
-        language,
+        language: languageRef.current,
       }),
     });
 
@@ -177,6 +178,9 @@ const finishTyping = () => {
 
 
   /* ---------------- MIC SETUP ---------------- */
+  useEffect(() => {
+  languageRef.current = language;
+}, [language]);
 
   useEffect(() => {
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
@@ -188,11 +192,13 @@ const finishTyping = () => {
       };
 
       recorder.onstop = async () => {
+        const currentLanguage = languageRef.current;
         const blob = new Blob(chunksRef.current, { type: "audio/wav" });
         chunksRef.current = [];
 
         const formData = new FormData();
         formData.append("audio", blob, "voice.wav");
+        formData.append("language_code", currentLanguage);
 
         try {
           const res = await fetch(`${PY_BACKEND}/speech-to-text`, {
@@ -213,10 +219,13 @@ const finishTyping = () => {
   }, []);
 
   const startRecording = () => {
-    if (loading || !mediaRecorderRef.current) return;
-    mediaRecorderRef.current.start();
-    setRecording(true);
-  };
+  if (loading || !mediaRecorderRef.current) return;
+
+  console.log("🎤 Recording with language:", language); // debug
+
+  mediaRecorderRef.current.start();
+  setRecording(true);
+};
 
   const stopRecording = () => {
     if (!mediaRecorderRef.current) return;

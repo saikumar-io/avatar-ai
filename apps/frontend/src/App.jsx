@@ -10,11 +10,11 @@ function App() {
       <Loader />
       <Leva collapsed hidden />
 
-      <div className="w-screen h-screen flex bg-black">
+      <div className="w-screen h-screen flex bg-[#0a192f] overflow-hidden">
 
         {/* AVATAR – 60% */}
         <div className="w-[60%] h-full relative">
-          <Canvas shadows camera={{ position: [0, 0, 0], fov: 10 }}>
+          <Canvas shadows camera={{ position: [0, 0, 0], fov: 10 }} gl={{ alpha: true }} style={{ background: "transparent" }}>
             <Scenario />
           </Canvas>
         </div>

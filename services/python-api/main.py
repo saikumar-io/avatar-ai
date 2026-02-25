@@ -43,27 +43,38 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 LOAN_PRODUCTS = {
     "home": [
+        {"type": "Home Loan Saver", "interest": 7.9, "years": 15, "processing_fee": 1.2},
         {"type": "Home Loan Standard", "interest": 8.2, "years": 20, "processing_fee": 1.0},
-        {"type": "Home Loan Flexi", "interest": 8.9, "years": 25, "processing_fee": 0.8},
-        {"type": "Home Loan Premium Plus", "interest": 9.6, "years": 30, "processing_fee": 0.5},
+        {"type": "Home Loan Flexi", "interest": 8.7, "years": 25, "processing_fee": 0.8},
+        {"type": "Home Loan Premium Plus", "interest": 9.2, "years": 30, "processing_fee": 0.6},
+        {"type": "Home Loan Long Secure", "interest": 9.6, "years": 35, "processing_fee": 0.5},
     ],
+
     "car": [
-        {"type": "Car Loan Basic", "interest": 9.5, "years": 5, "processing_fee": 1.2},
-        {"type": "Car Loan Elite", "interest": 11.0, "years": 7, "processing_fee": 1.0},
-        {"type": "Car Loan Premium Drive", "interest": 13.5, "years": 8, "processing_fee": 0.8},
+        {"type": "Car Loan Basic", "interest": 8.8, "years": 4, "processing_fee": 1.3},
+        {"type": "Car Loan Standard", "interest": 9.5, "years": 5, "processing_fee": 1.2},
+        {"type": "Car Loan Elite", "interest": 10.8, "years": 7, "processing_fee": 1.0},
+        {"type": "Car Loan Premium Drive", "interest": 12.2, "years": 8, "processing_fee": 0.8},
     ],
+
     "personal": [
-        {"type": "Personal Loan Smart", "interest": 13.0, "years": 3, "processing_fee": 2.0},
-        {"type": "Personal Loan Instant Plus", "interest": 16.5, "years": 4, "processing_fee": 1.5},
-        {"type": "Personal Loan Ultra Flex", "interest": 18.8, "years": 5, "processing_fee": 1.0},
+        {"type": "Personal Loan Quick", "interest": 11.5, "years": 2, "processing_fee": 2.0},
+        {"type": "Personal Loan Smart", "interest": 13.0, "years": 3, "processing_fee": 1.8},
+        {"type": "Personal Loan Instant Plus", "interest": 15.5, "years": 4, "processing_fee": 1.5},
+        {"type": "Personal Loan Ultra Flex", "interest": 17.8, "years": 5, "processing_fee": 1.2},
     ],
+
     "education": [
-        {"type": "Education Loan National", "interest": 7.5, "years": 10, "processing_fee": 0.5},
-        {"type": "Education Loan Global", "interest": 8.8, "years": 12, "processing_fee": 0.7},
+        {"type": "Education Loan National", "interest": 7.2, "years": 8, "processing_fee": 0.6},
+        {"type": "Education Loan Scholar Plus", "interest": 7.8, "years": 10, "processing_fee": 0.5},
+        {"type": "Education Loan Global", "interest": 8.5, "years": 12, "processing_fee": 0.7},
     ],
+
     "business": [
+        {"type": "SME Starter Loan", "interest": 11.2, "years": 5, "processing_fee": 1.8},
         {"type": "SME Growth Loan", "interest": 12.5, "years": 7, "processing_fee": 1.5},
-        {"type": "Enterprise Expansion Loan", "interest": 15.2, "years": 10, "processing_fee": 1.0},
+        {"type": "Enterprise Expansion Loan", "interest": 14.8, "years": 10, "processing_fee": 1.2},
+        {"type": "Corporate Strategic Loan", "interest": 16.5, "years": 12, "processing_fee": 1.0},
     ]
 }
 
@@ -165,6 +176,12 @@ def chat():
             return jsonify({"error": "User message is required"}), 400
 
         loan_type = None
+        loan_analysis = None
+        principal = None
+        loan_options = []
+        recommended = None
+        comparison_plan = None
+        loan_summary_block = ""
 
         if "home" in user_message.lower():
             loan_type = "home"
@@ -190,21 +207,33 @@ def chat():
             }
 
         session = conversation_sessions[session_id]
-
         # Always reset system prompt cleanly
         system_prompt = f"""
-You are a knowledgeable financial assistant specializing in loans.
+You are a professional financial assistant specializing in loan advisory and eligibility screening.
 
-When the user asks about a loan:
-• Provide complete explanation including all the required like intrest rates,etc.. and important considerations.
-• Do NOT ask unnecessary follow-up questions.
-• Respond completely in {selected_language}.
-• Keep answers structured and clear.
+{loan_summary_block if loan_type and principal else ""}
+
+Instructions:
+
+1. If user details (Name, Age, Annual Income) are missing, ask for them.
+2. If provided, determine eligibility:
+   - Age <21 or >65 → Not Eligible
+   - Income insufficient → Low Eligibility
+   - Otherwise → Eligible
+
+3. If loan options are provided above:
+   - Explain the recommended plan ONLY.
+   - Do NOT invent new plans.
+   - Do NOT contradict the recommendation.
+   - Justify why the recommended plan is financially balanced.
+
+4. Keep explanation concise and structured.
+5. Respond completely in {selected_language}.
 
 Return ONLY valid JSON:
 {{
-  "full_text": "...detailed explanation...",
-  "spoken_text": "...short conversational summary..."
+  "full_text": "Structured response including eligibility and plan explanation.",
+  "spoken_text": "Short spoken summary."
 }}
 """
 
@@ -252,11 +281,11 @@ Return ONLY valid JSON:
             "content": final_full
         })
         loan_analysis = None
+        loan_options = []
         principal = extract_amount(user_message)
 
         if loan_type and principal:
             selected_products = LOAN_PRODUCTS.get(loan_type, [])
-            loan_options = []
 
             for product in selected_products:
                 rate = product["interest"]
@@ -265,11 +294,16 @@ Return ONLY valid JSON:
                 result = calculate_emi(principal, rate, years)
 
                 # --- Advanced Indicators (INSIDE LOOP) ---
-                emi_ratio = result["emi"] / principal
-                affordability_score = max(0, min(100, int(100 - (emi_ratio * 1000))))
+                emi_ratio = result["emi"] / (principal / years / 12)
+                affordability_score = max(0, min(100, int(100 - (emi_ratio * 8))))
                 cash_flow_stability = min(100, int((years / 30) * 100))
-                risk_flexibility = max(0, int(100 - rate * 3))
+                risk_flexibility = max(0, int(100 - rate * 2))
 
+                composite_score = (
+                    (affordability_score * 0.4) +
+                    (cash_flow_stability * 0.3) +
+                    (risk_flexibility * 0.3)
+                )
 
                 loan_options.append({
                     "type": product["type"],
@@ -280,22 +314,40 @@ Return ONLY valid JSON:
                     "total_payment": result["total_payment"],
                     "affordability_score": affordability_score,
                     "cash_flow_stability": cash_flow_stability,
-                    "risk_flexibility": risk_flexibility
+                    "risk_flexibility": risk_flexibility,
+                    "composite_score": round(composite_score, 2)
                 })
 
-                # BANK PROFIT MAXIMIZATION
-                recommended = max(loan_options, key=lambda x: x["total_interest"])
+                if loan_options:
+                    sorted_plans = sorted(
+                        loan_options,
+                        key=lambda x: x["composite_score"],
+                        reverse=True
+                    )
 
-                # Add persuasion metrics
-                recommended["benefit_reason"] = (
-                    "Lower monthly EMI ensures better cash flow management "
-                    "while maintaining long-term financial flexibility."
-                )
-                loan_analysis = {
+                    recommended = sorted_plans[0]
+                    comparison_plan = sorted_plans[1] if len(sorted_plans) > 1 else None
+
+                    loan_analysis = {
                     "loan_products": loan_options,
                     "recommended_plan": recommended,
+                    "comparison_plan": comparison_plan,
                     "loan_category": loan_type
-                }
+                    }
+
+                    loan_summary_block = f"""
+Loan Category: {loan_type}
+
+Available Loan Options:
+{chr(10).join([f"- {p['type']} | {p['interest_rate']}% | {p['years']} yrs | EMI ₹{p['emi']}" for p in loan_options])}
+
+Recommended Plan (Based on composite financial score):
+- {recommended['type']}
+- Interest Rate: {recommended['interest_rate']}%
+- Tenure: {recommended['years']} years
+- Monthly EMI: ₹{recommended['emi']}
+- Total Interest: ₹{recommended['total_interest']}
+"""
 
         return jsonify({
             "full_text": final_full,
@@ -627,8 +679,7 @@ def speech_to_text():
             os.remove(file_path)
             return jsonify({'error': 'Uploaded file is empty'}), 400
 
-        global lang
-        current_lang = lang or "en-IN"
+        current_lang = request.form.get("language_code", "en-IN")
 
         print("🔊 STT Language:", current_lang)
 
